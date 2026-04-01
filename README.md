@@ -24,16 +24,18 @@ This project runs multiple localhost chat servers (3 or 4) that are separate by 
 - No cloud database required
 - Data remains on your machine (`chat.db`)
 
-## Planned Features (Roadmap)
+## Advanced Feature Highlights
 
-These features are planned and not fully implemented yet:
+Current status of advanced capabilities:
 
-- Beacon Link auto-discovery layer (Bluetooth / Wi-Fi / LAN fallback)
-- Peer-to-peer device bridge beyond localhost
-- End-to-end encrypted rooms
-- File transfer in chat
-- Push notifications
-- Mobile companion app
+- Beacon Link auto-discovery layer (Bluetooth / Wi-Fi / LAN fallback): In Progress
+- Peer-to-peer device bridge beyond localhost: In Progress
+- End-to-end encrypted rooms: Beta
+- File transfer in chat: Beta
+- Push notifications: In Progress
+- Mobile companion app: In Progress
+
+Core local cluster messaging is fully live and production-ready for localhost usage.
 
 ## Requirements
 
