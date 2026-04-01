@@ -2,6 +2,7 @@
   "name": "socket-chat-example",
   "version": "0.0.1",
   "description": "my first socket.io app",
+  "private": true,
   "type": "module",
   "dependencies": {
     "@socket.io/cluster-adapter": "^0.2.2",
@@ -10,7 +11,7 @@
     "sqlite": "^5.0.1",
     "sqlite3": "^5.1.6"
   },
-  "license": "MIT",
+  "license": "UNLICENSED",
   "scripts": {
     "dev": "node index.js",
     "dev:3": "node index.js --workers=3",

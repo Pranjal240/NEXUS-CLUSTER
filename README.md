@@ -103,3 +103,12 @@ Fix:
 
 - Main DB file: `chat.db`
 - Runtime temp files: `chat.db-shm`, `chat.db-wal`
+
+## License and Usage
+
+Copyright (c) 2026 Pranjal Mishra. All Rights Reserved.
+
+This repository is provided for portfolio viewing and code-quality evaluation only.
+No permission is granted to copy, modify, reuse, sublicense, or redistribute this code.
+
+For permission requests, contact: https://github.com/Pranjal240
