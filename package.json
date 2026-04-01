@@ -12,6 +12,9 @@
   },
   "license": "MIT",
   "scripts": {
+    "dev": "node index.js",
+    "dev:3": "node index.js --workers=3",
+    "dev:4": "node index.js --workers=4",
     "start": "node index.js"
   }
 }

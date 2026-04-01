@@ -1,58 +1,449 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Socket.IO chat</title>
-  <style>
-      body { margin: 0; padding-bottom: 3rem; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Nexus Cluster Chat</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      /* --- FONTS & VARS --- */
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Oswald:wght@700&family=JetBrains+Mono:wght@500&display=swap");
 
-      #form { background: rgba(0, 0, 0, 0.15); padding: 0.25rem; position: fixed; bottom: 0; left: 0; right: 0; display: flex; height: 3rem; box-sizing: border-box; backdrop-filter: blur(10px); }
-      #input { border: none; padding: 0 1rem; flex-grow: 1; border-radius: 2rem; margin: 0.25rem; }
-      #input:focus { outline: none; }
-      #form > button { background: #333; border: none; padding: 0 1rem; margin: 0.25rem; border-radius: 3px; outline: none; color: #fff; }
-
-      #messages { list-style-type: none; margin: 0; padding: 0; }
-      #messages > li { padding: 0.5rem 1rem; }
-      #messages > li:nth-child(odd) { background: #efefef; }
-  </style>
-</head>
-<body>
-  <ul id="messages"></ul>
-  <form id="form" action="">
-    <input id="input" autocomplete="off" /><button>Send</button>
-  </form>
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    let counter = 0;
-
-    const socket = io({
-      auth: {
-        serverOffset: 0
-      },
-      ackTimeout: 10000,
-      retries: 3,
-    });
-
-    const form = document.getElementById('form');
-    const input = document.getElementById('input');
-    const messages = document.getElementById('messages');
-
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      if (input.value) {
-        const clientOffset = `${socket.id}-${counter++}`;
-        socket.emit('chat message', input.value, clientOffset);
-        input.value = '';
+      :root {
+        --bg-dark: #050505;
+        --glass: rgba(20, 20, 35, 0.7);
+        --glass-border: rgba(255, 255, 255, 0.1);
+        --accent: #3b82f6;
+        --text: #ffffff;
       }
-    });
 
-    socket.on('chat message', (msg, serverOffset) => {
-      const item = document.createElement('li');
-      item.textContent = msg;
-      messages.appendChild(item);
-      window.scrollTo(0, document.body.scrollHeight);
-      socket.auth.serverOffset = serverOffset;
-    });
-  </script>
-</body>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: "Inter", sans-serif;
+        background: radial-gradient(
+          circle at 50% 10%,
+          #1e1b4b 0%,
+          #000000 100%
+        );
+        color: var(--text);
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+      }
+
+      /* --- WATERMARK --- */
+      .watermark {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        pointer-events: none;
+        z-index: 0;
+      }
+      .watermark h1 {
+        font-family: "Oswald", sans-serif;
+        font-size: 6vw;
+        margin: 0;
+        color: transparent;
+        -webkit-text-stroke: 2px rgba(255, 255, 255, 0.1);
+      }
+      .watermark p {
+        font-family: "JetBrains Mono", monospace;
+        color: rgba(255, 255, 255, 0.3);
+        letter-spacing: 4px;
+      }
+
+      /* --- LOGIN OVERLAY --- */
+      #login-screen {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 9999;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        backdrop-filter: blur(10px);
+      }
+      .login-box {
+        background: #1a1a2e;
+        padding: 40px;
+        border-radius: 20px;
+        text-align: center;
+        border: 1px solid var(--glass-border);
+        width: 90%;
+        max-width: 400px;
+      }
+      #name-input {
+        width: 100%;
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 10px;
+        border: none;
+        background: #0f0f1a;
+        color: white;
+        font-size: 1.2rem;
+        text-align: center;
+      }
+      #join-btn {
+        width: 100%;
+        padding: 15px;
+        background: var(--accent);
+        border: none;
+        color: white;
+        font-weight: bold;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 1rem;
+      }
+
+      /* --- CHAT UI --- */
+      #chat-ui {
+        opacity: 0;
+        transition: opacity 0.5s;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        z-index: 10;
+      }
+
+      header {
+        padding: 15px 20px;
+        background: var(--glass);
+        display: flex;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--glass-border);
+        backdrop-filter: blur(10px);
+      }
+      .logo {
+        font-weight: bold;
+        font-family: "Oswald";
+        letter-spacing: 1px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .logo .muted {
+        font-size: 0.75rem;
+        opacity: 0.7;
+        font-family: "JetBrains Mono", monospace;
+      }
+      .server-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 10px 20px;
+        background: rgba(0, 0, 0, 0.25);
+        border-bottom: 1px solid var(--glass-border);
+      }
+      .server-pill {
+        text-decoration: none;
+        color: #e2e8f0;
+        border: 1px solid #334155;
+        background: rgba(15, 23, 42, 0.7);
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.75rem;
+      }
+      .server-pill.active {
+        border-color: #60a5fa;
+        color: #dbeafe;
+        background: rgba(37, 99, 235, 0.35);
+      }
+
+      #messages {
+        flex: 1;
+        overflow-y: auto;
+        list-style: none;
+        padding: 20px;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .message {
+        padding: 12px 18px;
+        border-radius: 12px;
+        max-width: 80%;
+        width: fit-content;
+        position: relative;
+        animation: popIn 0.3s ease;
+      }
+      .message.my {
+        align-self: flex-end;
+        background: #2563eb;
+        border-bottom-right-radius: 2px;
+      }
+      .message.other {
+        align-self: flex-start;
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-bottom-left-radius: 2px;
+      }
+
+      .meta {
+        font-size: 0.75rem;
+        font-weight: bold;
+        margin-bottom: 4px;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        font-family: "JetBrains Mono";
+      }
+      .server-tag {
+        opacity: 0.7;
+        font-size: 0.65rem;
+      }
+      .text {
+        font-size: 1rem;
+        line-height: 1.4;
+      }
+
+      @keyframes popIn {
+        from {
+          transform: translateY(10px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
+      /* --- INPUT --- */
+      .input-area {
+        padding: 20px;
+        background: linear-gradient(to top, black, transparent);
+        display: flex;
+        justify-content: center;
+      }
+      form {
+        display: flex;
+        width: 100%;
+        max-width: 800px;
+        background: var(--glass);
+        padding: 8px;
+        border-radius: 50px;
+        border: 1px solid var(--glass-border);
+      }
+      input {
+        flex: 1;
+        background: transparent;
+        border: none;
+        padding: 0 20px;
+        color: white;
+        font-size: 1rem;
+        outline: none;
+      }
+      button {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        border: none;
+        background: var(--accent);
+        color: white;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="watermark">
+      <h1>CLUSTER CHAT</h1>
+      <p>BY PRANJAL MISHRA</p>
+    </div>
+
+    <div id="login-screen">
+      <div class="login-box">
+        <h2
+          style="
+            margin: 0;
+            text-transform: uppercase;
+            font-family: &quot;Oswald&quot;;
+          "
+        >
+          Identity Protocol
+        </h2>
+        <input
+          type="text"
+          id="name-input"
+          placeholder="ENTER YOUR NAME"
+          autocomplete="off"
+        />
+        <button id="join-btn">CONNECT</button>
+      </div>
+    </div>
+
+    <div id="chat-ui">
+      <header>
+        <div class="logo">
+          <span id="logo-text">NEXUS CLUSTER</span>
+          <span id="my-port" class="muted"></span>
+          <span id="my-name" class="muted"></span>
+        </div>
+        <div
+          style="color: #ef4444; cursor: pointer; font-weight: bold"
+          onclick="clearChat()"
+        >
+          CLEAR CHAT
+        </div>
+      </header>
+
+      <div id="server-strip" class="server-strip"></div>
+
+      <ul id="messages"></ul>
+
+      <div class="input-area">
+        <form id="form">
+          <input id="input" autocomplete="off" placeholder="Message..." />
+          <button><i class="fa-solid fa-paper-plane"></i></button>
+        </form>
+      </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io({ auth: { serverOffset: 0 } });
+      let myName = "";
+      let counter = 0;
+
+      // Elements
+      const loginScreen = document.getElementById("login-screen");
+      const chatUi = document.getElementById("chat-ui");
+      const nameInput = document.getElementById("name-input");
+      const joinBtn = document.getElementById("join-btn");
+      const messages = document.getElementById("messages");
+      const form = document.getElementById("form");
+      const input = document.getElementById("input");
+      const myPort = document.getElementById("my-port");
+      const myNameTag = document.getElementById("my-name");
+      const serverStrip = document.getElementById("server-strip");
+
+      async function loadClusterInfo() {
+        try {
+          const response = await fetch("/cluster-info");
+          if (!response.ok) {
+            return;
+          }
+
+          const data = await response.json();
+          const currentPort = Number(location.port || data.basePort || 3000);
+          myPort.textContent = `SERVER ${currentPort}`;
+          serverStrip.innerHTML = "";
+
+          (data.ports || []).forEach((port) => {
+            const link = document.createElement("a");
+            const isActive = Number(port) === currentPort;
+            link.className = `server-pill${isActive ? " active" : ""}`;
+            link.href = `http://localhost:${port}`;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.textContent = `LOCALHOST:${port}`;
+            serverStrip.appendChild(link);
+          });
+        } catch {
+          // Do nothing if cluster info endpoint is unavailable.
+        }
+      }
+
+      loadClusterInfo();
+
+      function joinChat() {
+        const enteredName = nameInput.value.trim();
+        if (!enteredName) {
+          return;
+        }
+
+        myName = enteredName;
+        loginScreen.style.display = "none";
+        chatUi.style.opacity = "1";
+        myNameTag.textContent = `USER ${myName}`;
+        input.focus();
+      }
+
+      // Login Logic
+      joinBtn.addEventListener("click", joinChat);
+
+      nameInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          joinChat();
+        }
+      });
+
+      // Send Message
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (input.value && myName) {
+          const offset = `${socket.id}-${counter++}`;
+          socket.emit("chat message", input.value, offset, myName);
+          input.value = "";
+        }
+      });
+
+      // Receive Message
+      socket.on("chat message", (msg, serverOffset, username, port) => {
+        const item = document.createElement("li");
+        const isMe = username === myName;
+
+        item.className = isMe ? "message my" : "message other";
+
+        // Dynamic Name Color
+        const nameColor = isMe ? "#ffffff" : getColor(username);
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.style.color = nameColor;
+
+        const usernameLabel = document.createElement("span");
+        usernameLabel.textContent = username;
+
+        const serverTag = document.createElement("span");
+        serverTag.className = "server-tag";
+        serverTag.textContent = `SERVER ${port}`;
+
+        const text = document.createElement("div");
+        text.className = "text";
+        text.textContent = msg;
+
+        meta.appendChild(usernameLabel);
+        meta.appendChild(serverTag);
+        item.appendChild(meta);
+        item.appendChild(text);
+
+        messages.appendChild(item);
+        messages.scrollTop = messages.scrollHeight;
+        socket.auth.serverOffset = serverOffset;
+      });
+
+      function clearChat() {
+        if (confirm("Delete all history?")) socket.emit("clear chat");
+      }
+
+      socket.on("chat cleared", () => (messages.innerHTML = ""));
+
+      // Color Gen
+      function getColor(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++)
+          hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        const c = (hash & 0x00ffffff).toString(16).toUpperCase();
+        return "#" + "00000".substring(0, 6 - c.length) + c;
+      }
+    </script>
+  </body>
 </html>
